@@ -1,0 +1,11 @@
+db_name     = "wp_db"
+db_user     = "wp_user"
+db_password = "Wp-Db-Passwd"
+
+name_prefix = "wp"
+
+common_tags = {
+    Environment = "Test"
+    Owner       = "aleksandr_mukhin@epam.com"
+    Project     = "Wordpress deploy"
+}
