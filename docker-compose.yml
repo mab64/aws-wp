@@ -4,6 +4,8 @@ services:
     image: wordpress
     container_name: wordpress
     hostname: wordpress
+    volumes:
+      - "/efs/wp-content:/var/www/html/wp-content"
     ports: 
       - 80:80
     restart: always

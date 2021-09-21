@@ -9,7 +9,7 @@ resource "aws_vpc" "vpc" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   tags = {
-    Name = "wp_vpc"
+    Name = "${var.name_prefix}-vpc"
   }
 
 }
@@ -37,68 +37,24 @@ resource "aws_subnet" "subnets" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "subnet${count.index}"
+    Name = "${var.name_prefix}-subnet${count.index}"
   }
 }
 
-# resource "aws_subnet" "subnet0" {
-#   vpc_id            = aws_vpc.vpc.id
-#   cidr_block        = "10.11.0.0/24"
-#   availability_zone = "eu-central-1a"
-#   map_public_ip_on_launch = true
-
-#   tags = {
-#     Name = "subnet0"
-#   }
-# }
-
-# resource "aws_subnet" "subnet1" {
-#   vpc_id            = aws_vpc.vpc.id
-#   cidr_block        = "10.11.1.0/24"
-#   availability_zone = "eu-central-1b"
-#   map_public_ip_on_launch = true
-
-#   tags = {
-#     Name = "subnet1"
-#   }
-# }
-
-# resource "aws_subnet" "subnet2" {
-#   vpc_id            = aws_vpc.vpc.id
-#   cidr_block        = "10.11.2.0/24"
-#   availability_zone = "eu-central-1c"
-#   map_public_ip_on_launch = true
-
-#   tags = {
-#     Name = "subnet2"
-#   }
-# }
-
-# resource "aws_network_interface" "ec2_ip" {
-#   subnet_id   = aws_subnet.subnet0.id
-#   private_ips = ["10.11.0.10"]
-#   security_groups = [aws_security_group.sg.id]
-
-#   tags = {
-#     Name = "primary_network_interface"
-#   }
-# }
-
 
 resource "aws_key_pair" "ssh_key" {
-  key_name   = "ssh_key"
+  key_name   = "${var.name_prefix}-ssh-key"
   public_key = file("~/.ssh/id_rsa.pub")
 }
 
 
-resource "aws_security_group" "sg" {
-  name        = "sg"
-  description = "traffic"
+resource "aws_security_group" "ec2_sg" {
+  name        = "${var.name_prefix}-ec2-sg"
+#   description = "traffic"
   vpc_id      = aws_vpc.vpc.id
 
   tags = {
-    Name = "sg"
-    # Name = "${prefix}-sg"
+    Name = "${var.name_prefix}-ec2-sg"
   }
 
   dynamic "ingress" {
@@ -133,6 +89,84 @@ resource "aws_security_group" "sg" {
 
 }
 
+resource "aws_security_group" "mysql_sg" {
+#   description = "traffic"
+  name        = "${var.name_prefix}-mysql-sg"
+  vpc_id      = aws_vpc.vpc.id
+
+  tags = {
+    Name = "${var.name_prefix}-mysql-sg"
+  }
+
+  ingress = [
+    {
+      description      = "MySQL traffic"
+      from_port        = 3306
+      to_port          = 3306
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = ["::/0"]
+      # cidr_blocks      = [aws_vpc.main.cidr_block]
+      # ipv6_cidr_blocks = [aws_vpc.main.ipv6_cidr_block]
+      prefix_list_ids = []
+      security_groups = []
+      self = null
+    }
+  ]
+  egress = [
+    {
+      description      = "All traffic"
+      from_port        = 0
+      to_port          = 0
+      protocol         = "-1"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = ["::/0"]
+      prefix_list_ids = []
+      security_groups = []
+      self = null
+    }
+  ]
+}
+
+resource "aws_security_group" "efs_sg" {
+#   description = "traffic"
+  name        = "${var.name_prefix}-efs-sg"
+  vpc_id      = aws_vpc.vpc.id
+
+  tags = {
+    Name = "${var.name_prefix}-efs-sg"
+  }
+
+  ingress = [
+    {
+      description      = "NFS traffic"
+      from_port        = 2049
+      to_port          = 2049
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = ["::/0"]
+      # cidr_blocks      = [aws_vpc.main.cidr_block]
+      # ipv6_cidr_blocks = [aws_vpc.main.ipv6_cidr_block]
+      prefix_list_ids = []
+      security_groups = []
+      self = null
+    }
+  ]
+  egress = [
+    {
+      description      = "All traffic"
+      from_port        = 0
+      to_port          = 0
+      protocol         = "-1"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = ["::/0"]
+      prefix_list_ids = []
+      security_groups = []
+      self = null
+    }
+  ]
+}
+
 
 resource "aws_instance" "ec2_inst" {
   ami           = var.ec2_ami
@@ -140,13 +174,12 @@ resource "aws_instance" "ec2_inst" {
   count = 2
 
   tags = {
-    # Name = "ec2_wordpress"
-    Name = "ec2_wordpress${count.index}"
+    Name = "${var.name_prefix}-ec2-${count.index}"
   }
 
   key_name = aws_key_pair.ssh_key.id
   # security_groups = [""]
-  vpc_security_group_ids = [aws_security_group.sg.id]
+  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   subnet_id = aws_subnet.subnets[count.index].id
 
 #   network_interface {
@@ -172,26 +205,30 @@ resource "aws_instance" "ec2_inst" {
   provisioner "remote-exec" {
     inline = [
       "sudo apt update > /dev/null",
-      "sudo apt install -y docker docker.io docker-compose > /dev/null",
+      "sudo apt install -y nfs-common docker docker.io docker-compose > /dev/null",
       "sudo systemctl start docker",
+      "sudo usermod -aG docker ${var.ec2_username}",
       "echo WORDPRESS_DB_HOST=${aws_db_instance.rdb.address} > .env",
       "echo WORDPRESS_DB_NAME=${var.db_name} >> .env",
       "echo WORDPRESS_DB_USER=${var.db_user} >> .env",
       "echo WORDPRESS_DB_PASSWORD=${var.db_password} >> .env",
+      "sudo mkdir /efs",
+      "sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport ${aws_efs_mount_target.mount.ip_address}:/ /efs",
+      "sudo mkdir /efs/wordpress",
       "sudo docker-compose up -d > /dev/null"
     ]
   }
 
-  depends_on = [aws_db_instance.rdb]
+  depends_on = [aws_db_instance.rdb, aws_efs_file_system.efs]
 }
 
 
 resource "aws_db_subnet_group" "db_subnet_gr" {
-  name       = "db_subnet_gr"
+  name       = "${var.name_prefix}-db-subnet-gr"
   subnet_ids = aws_subnet.subnets.*.id
 
   tags = {
-    Name = "db_subnet_gr"
+    Name = "${var.name_prefix}-db-subnet-gr"
   }
 }
 
@@ -207,37 +244,15 @@ resource "aws_db_instance" "rdb" {
   # parameter_group_name = "default.mysql5.7"
   skip_final_snapshot  = true
   db_subnet_group_name = aws_db_subnet_group.db_subnet_gr.name
-  vpc_security_group_ids = [aws_security_group.sg.id]
-}
-
-########
-# output "ec2_ip" {
-#   value = aws_instance.ec2.public_ip
-# }
-
-output "ec2_ip0" {
-  value = aws_instance.ec2_inst.0.public_ip
-}
-output "ec2_ip1" {
-  value = aws_instance.ec2_inst.1.public_ip
-}
-
-
-output "rdb_addr" {
-  value = aws_db_instance.rdb.address
-}
-
-output "subnets" {
-#   value = aws_subnet.subnets[count.index].cidr_block
-  value = aws_subnet.subnets.*.cidr_block
+  vpc_security_group_ids = [aws_security_group.mysql_sg.id]
 }
 
 
 resource "aws_lb" "alb" {
-  name               = "test-lb-tf"
+  name               = "${var.name_prefix}-alb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.sg.id]
+  security_groups    = [aws_security_group.ec2_sg.id]
   subnets            = aws_subnet.subnets.*.id
 
 #   enable_deletion_protection = true
@@ -254,7 +269,7 @@ resource "aws_lb" "alb" {
 }
 
 resource "aws_lb_target_group" "alb_tg" {
-  name     = "tf-example-lb-tg"
+  name     = "${var.name_prefix}-alb-tg"
   port     = 80
   protocol = "HTTP"
   target_type = "instance"
@@ -278,15 +293,29 @@ resource "aws_lb_listener" "aws_lb_lstn" {
   }
 }
 
-# resource "aws_lb_target_group_attachment" "alb_tg_atch" {
-#   target_group_arn = aws_lb_target_group.alb_tg.arn
+resource "aws_lb_target_group_attachment" "alb_tg_atch" {
+  target_group_arn = aws_lb_target_group.alb_tg.arn
 #   for_each = toset(aws_instance.ec2_inst.*.id)
+  count = length(aws_instance.ec2_inst)
 #   target_id        = each.key
-#   port             = 80
-# }
+  target_id        = aws_instance.ec2_inst[count.index].id
+  port             = 80
+  depends_on = [aws_instance.ec2_inst]
+}
 
-# resource "aws_lb_target_group_attachment" "alb_tg_atch1" {
-#   target_group_arn = aws_lb_target_group.alb_tg.arn
-#   target_id        = aws_instance.ec2_inst.1.id
-#   port             = 80
-# }
+#########
+# sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport 10.11.0.214:/ /mnt/efs/
+
+resource "aws_efs_file_system" "efs" {
+  creation_token = "${var.name_prefix}-efs"
+  tags = {
+    Name = "${var.name_prefix}-efs"
+  }
+}
+
+resource "aws_efs_mount_target" "mount" {
+  file_system_id = aws_efs_file_system.efs.id
+  subnet_id      = aws_subnet.subnets[0].id
+  security_groups = [aws_security_group.efs_sg.id]
+}
+

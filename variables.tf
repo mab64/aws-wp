@@ -33,6 +33,10 @@ variable "ec2_instance_type" {
   default = "t2.micro"
 }
 
+variable "ec2_username" {
+  default = "admin"
+}
+
 variable "db_instance_class" {
   default = "db.t2.micro"
 }
