@@ -1,10 +1,10 @@
 
-output "ec2_ip0" {
-  value = aws_instance.ec2_inst.0.public_ip
+output "ec2_ip" {
+  value = aws_instance.ec2_inst.*.public_ip
 }
-output "ec2_ip1" {
-  value = aws_instance.ec2_inst.1.public_ip
-}
+# output "ec2_ip1" {
+#   value = aws_instance.ec2_inst.1.public_ip
+# }
 
 
 output "rdb_addr" {

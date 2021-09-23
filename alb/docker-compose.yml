@@ -5,8 +5,8 @@ services:
     container_name: wordpress
     hostname: wordpress
     volumes:
-      - "/efs/wp-content:/var/www/html/wp-content"
-    ports: 
+      - "/efs/wordpress:/var/www/html"
+    ports:
       - 80:80
     restart: always
     environment: 
@@ -16,3 +16,5 @@ services:
       WORDPRESS_DB_PASSWORD: $WORDPRESS_DB_PASSWORD
 #    depends_on: 
 #      - db
+# voumes:
+#   wordpress:
