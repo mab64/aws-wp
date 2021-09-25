@@ -21,6 +21,7 @@ resource "aws_lb_target_group" "alb_tg" {
   protocol = "HTTP"
   target_type = "instance"
   vpc_id   = aws_vpc.vpc.id
+  deregistration_delay = 120
   stickiness {
     enabled = true
     type = "lb_cookie"
@@ -39,13 +40,13 @@ resource "aws_lb_listener" "aws_lb_lstn" {
   }
 }
 
-resource "aws_lb_target_group_attachment" "alb_tg_atch" {
-  target_group_arn = aws_lb_target_group.alb_tg.arn
-#   for_each = toset(aws_instance.ec2_inst.*.id)
-#   target_id        = each.key
-  count = length(aws_instance.ec2_inst)
-  target_id        = aws_instance.ec2_inst[count.index].id
-  port             = 80
-  depends_on = [aws_instance.ec2_inst]
-}
+# resource "aws_lb_target_group_attachment" "alb_tg_atch" {
+#   target_group_arn = aws_lb_target_group.alb_tg.arn
+# #   for_each = toset(aws_instance.ec2_inst.*.id)
+# #   target_id        = each.key
+#   count = length(aws_instance.ec2_inst)
+#   target_id        = aws_instance.ec2_inst[count.index].id
+#   port             = 80
+#   depends_on = [aws_instance.ec2_inst]
+# }
 
