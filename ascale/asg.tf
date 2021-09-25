@@ -1,3 +1,40 @@
+resource "aws_security_group" "ec2_sg" {
+  name        = "${var.name_prefix}-ec2-sg"
+  vpc_id      = aws_vpc.vpc.id
+
+  tags = {
+    Name = "${var.name_prefix}-ec2-sg"
+  }
+
+  dynamic "ingress" {
+    for_each = ["22", "80", "443", "3306", "8080"]
+    content {
+      from_port        = ingress.value
+      to_port          = ingress.value
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = ["::/0"]
+      prefix_list_ids = []
+      security_groups = []
+      self = null
+    }
+  }
+
+  egress = [
+    {
+      description      = "All traffic"
+      from_port        = 0
+      to_port          = 0
+      protocol         = "-1"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = ["::/0"]
+      prefix_list_ids = []
+      security_groups = []
+      self = null
+    }
+  ]
+}
+
 resource "aws_launch_configuration" "launch_conf" {
   # name_prefix = "${var.name_prefix}-"
   name = "${var.name_prefix}-launch_conf"
@@ -14,7 +51,7 @@ resource "aws_launch_configuration" "launch_conf" {
     apt update
     apt -y install net-tools stress-ng nfs-common docker docker.io # docker-compose
     systemctl start docker
-    docker run -dit -p 8080:80 --name nginx nginx
+    #docker run -dit -p 8080:80 --name nginx nginx
     mkdir /efs
     mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport "${aws_efs_mount_target.mount.ip_address}":/ /efs
     mkdir -p /efs/wordpress
@@ -42,7 +79,8 @@ resource "aws_autoscaling_group" "asg" {
   desired_capacity     = 2
   max_size             = 3
   health_check_type    = "ELB"
-  health_check_grace_period = 300
+  # health_check_grace_period = 300
+  
   # load_balancers = [ aws_elb.elb.id ]
   target_group_arns = [ aws_lb_target_group.alb_tg.arn ]
 
@@ -62,60 +100,55 @@ resource "aws_autoscaling_group" "asg" {
   #   "GroupTotalInstances"
   # ]
 
-  # redeploy without an outage.
+  # Redeploy without an outage.
   # lifecycle {
   #   create_before_destroy = true
   # }
-  # tags = {
-  #   Name = "${var.name_prefix}-asg-ec2"
-  # }
   
-  depends_on = [
-    aws_db_instance.rdb
-  ]
+  depends_on = [ aws_db_instance.rdb, aws_efs_file_system.efs ]
 }
 
 resource "aws_autoscaling_policy" "scale_up" {
-  name = "${var.name_prefix}-scale-up-policy"
+  name = "${var.name_prefix}-scale-policy-up"
   scaling_adjustment = 1
   adjustment_type = "ChangeInCapacity"
-  cooldown = 120
+  cooldown = 180
   autoscaling_group_name = aws_autoscaling_group.asg.name
 }
 
-resource "aws_cloudwatch_metric_alarm" "web_cpu_alarm_up" {
-  alarm_name = "web_cpu_alarm_up"
+resource "aws_cloudwatch_metric_alarm" "alarm_cpu_high" {
+  alarm_name = "alarm-cpu-high"
   comparison_operator = "GreaterThanOrEqualToThreshold"
+  period = "60"
   evaluation_periods = "2"
   metric_name = "CPUUtilization"
   namespace = "AWS/EC2"
-  period = "60"
   statistic = "Average"
-  threshold = "70"
+  threshold = "80"
 
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
 
-  alarm_description = "This metric monitor EC2 instance CPU utilization"
+  alarm_description = "Monitors EC2 instance high CPU utilization"
   alarm_actions = [ aws_autoscaling_policy.scale_up.arn ]
 }
 
 resource "aws_autoscaling_policy" "scale_down" {
-  name = "${var.name_prefix}-scale-down-policy"
+  name = "${var.name_prefix}-scale-policy-down"
   scaling_adjustment = -1
   adjustment_type = "ChangeInCapacity"
-  cooldown = 120
+  cooldown = 180
   autoscaling_group_name = aws_autoscaling_group.asg.name
 }
 
-resource "aws_cloudwatch_metric_alarm" "web_cpu_alarm_down" {
-  alarm_name = "web_cpu_alarm_down"
+resource "aws_cloudwatch_metric_alarm" "alarm_cpu_low" {
+  alarm_name = "alarm-cpu-low"
   comparison_operator = "LessThanOrEqualToThreshold"
+  period = "60"
   evaluation_periods = "2"
   metric_name = "CPUUtilization"
   namespace = "AWS/EC2"
-  period = "60"
   statistic = "Average"
   threshold = "30"
 
@@ -123,43 +156,38 @@ resource "aws_cloudwatch_metric_alarm" "web_cpu_alarm_down" {
     AutoScalingGroupName = aws_autoscaling_group.asg.name
   }
 
-  alarm_description = "This metric monitor EC2 instance CPU utilization"
+  alarm_description = "Monitors EC2 instance low CPU utilization"
   alarm_actions = [ aws_autoscaling_policy.scale_down.arn ]
 }
 
 
-resource "aws_elb" "elb" {
-  name = "${var.name_prefix}-elb"
-  security_groups = [ aws_security_group.ec2_sg.id ]
-  subnets = aws_subnet.subnets.*.id
+# resource "aws_elb" "elb" {
+#   name = "${var.name_prefix}-elb"
+#   security_groups = [ aws_security_group.ec2_sg.id ]
+#   subnets = aws_subnet.subnets.*.id
 
-  cross_zone_load_balancing   = true
+#   cross_zone_load_balancing   = true
 
-  health_check {
-    healthy_threshold = 2
-    unhealthy_threshold = 2
-    timeout = 3
-    interval = 30
-    target = "HTTP:80/"
-  }
+#   health_check {
+#     healthy_threshold = 2
+#     unhealthy_threshold = 2
+#     timeout = 3
+#     interval = 30
+#     target = "HTTP:80/"
+#   }
 
-  listener {
-    lb_port = 80
-    lb_protocol = "http"
-    instance_port = "80"
-    instance_protocol = "http"
-  }
-  listener {
-    lb_port = 443
-    lb_protocol = "https"
-    ssl_certificate_id = aws_acm_certificate.ssl_cert.arn
-    instance_port = "80"
-    instance_protocol = "http"
-  }
-}
+#   listener {
+#     instance_port = "80"
+#     instance_protocol = "http"
+#     lb_port = 80
+#     lb_protocol = "http"
+#   }
+#   listener {
+#     instance_port = "80"
+#     instance_protocol = "http"
+#     lb_port = 443
+#     lb_protocol = "https"
+#     ssl_certificate_id = aws_acm_certificate.ssl_cert.arn
+#   }
+# }
 
-resource "aws_acm_certificate" "ssl_cert" {
-  private_key=file("../.cert/privkey.pem")
-  certificate_body = file("../.cert/cert.pem")
-  certificate_chain=file("../.cert/chain.pem")
-}

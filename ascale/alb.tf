@@ -21,7 +21,7 @@ resource "aws_lb_target_group" "alb_tg" {
   protocol = "HTTP"
   target_type = "instance"
   vpc_id   = aws_vpc.vpc.id
-  deregistration_delay = 120
+  deregistration_delay = 70
   stickiness {
     enabled = true
     type = "lb_cookie"
@@ -29,7 +29,7 @@ resource "aws_lb_target_group" "alb_tg" {
   depends_on = [aws_lb.alb]
 }
 
-resource "aws_lb_listener" "aws_lb_lstn" {
+resource "aws_lb_listener" "alb_lstn_http" {
   load_balancer_arn = aws_lb.alb.arn
   port              = "80"
   protocol          = "HTTP"
@@ -39,14 +39,22 @@ resource "aws_lb_listener" "aws_lb_lstn" {
     target_group_arn = aws_lb_target_group.alb_tg.arn
   }
 }
+# For HTTPS access
+# Genetate SSL certificate for your dommain name
+# Create CNAME record on your domain DNS server
+resource "aws_lb_listener" "alb_lstn_https" {
+  load_balancer_arn = aws_lb.alb.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = aws_acm_certificate.ssl_cert.arn
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.alb_tg.arn
+  }
+}
 
-# resource "aws_lb_target_group_attachment" "alb_tg_atch" {
-#   target_group_arn = aws_lb_target_group.alb_tg.arn
-# #   for_each = toset(aws_instance.ec2_inst.*.id)
-# #   target_id        = each.key
-#   count = length(aws_instance.ec2_inst)
-#   target_id        = aws_instance.ec2_inst[count.index].id
-#   port             = 80
-#   depends_on = [aws_instance.ec2_inst]
+# resource "aws_lb_listener_certificate" "alb_lstn_https_cert" {
+#   listener_arn    = aws_lb_listener.alb_lstn_https.arn
+#   certificate_arn = aws_acm_certificate.ssl_cert.arn
 # }
-

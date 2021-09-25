@@ -5,11 +5,6 @@ resource "aws_lb" "alb" {
   security_groups    = [aws_security_group.ec2_sg.id]
   subnets            = aws_subnet.subnets.*.id
 #   enable_deletion_protection = true
-#   access_logs {
-#     bucket  = aws_s3_bucket.lb_logs.bucket
-#     prefix  = "test-lb"
-#     enabled = true
-#   }
   tags = {
     Name = "${var.name_prefix}_alb"
   }
@@ -25,7 +20,20 @@ resource "aws_lb_target_group" "alb_tg" {
     enabled = true
     type = "lb_cookie"
   }
-  depends_on = [aws_lb.alb]
+  health_check {
+    matcher = "200-302"
+  }
+  # depends_on = [aws_lb.alb]
+}
+
+resource "aws_lb_target_group_attachment" "alb_tg_atch" {
+  target_group_arn = aws_lb_target_group.alb_tg.arn
+#   for_each = toset(aws_instance.ec2_inst.*.id)
+#   target_id        = each.key
+  count = length(aws_instance.ec2_inst)
+  target_id        = aws_instance.ec2_inst[count.index].id
+  port             = 80
+  depends_on = [aws_instance.ec2_inst]
 }
 
 resource "aws_lb_listener" "aws_lb_lstn" {
@@ -39,13 +47,7 @@ resource "aws_lb_listener" "aws_lb_lstn" {
   }
 }
 
-resource "aws_lb_target_group_attachment" "alb_tg_atch" {
-  target_group_arn = aws_lb_target_group.alb_tg.arn
-#   for_each = toset(aws_instance.ec2_inst.*.id)
-#   target_id        = each.key
-  count = length(aws_instance.ec2_inst)
-  target_id        = aws_instance.ec2_inst[count.index].id
-  port             = 80
-  depends_on = [aws_instance.ec2_inst]
-}
 
+output "alb_dns_name" {
+  value = aws_lb.alb.dns_name
+}

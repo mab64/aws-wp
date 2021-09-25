@@ -14,6 +14,7 @@ variable "name_prefix" {}
 variable "vpc_cidr" {
   default = "10.11.0.0/16"
 }
+
 variable "cidr_blocks" {
   default = ["10.11.0.0/24", 
              "10.11.1.0/24",

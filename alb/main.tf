@@ -15,14 +15,13 @@ resource "aws_key_pair" "ssh_key" {
 resource "aws_instance" "ec2_inst" {
   ami           = var.ec2_ami
   instance_type = var.ec2_instance_type
-  count = 2
+  count = var.ec2_innstance_count
 
   tags = {
     Name = "${var.name_prefix}-ec2-${count.index}"
   }
 
   key_name = aws_key_pair.ssh_key.id
-  # security_groups = [""]
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   subnet_id = aws_subnet.subnets[count.index].id
 
@@ -43,8 +42,10 @@ resource "aws_instance" "ec2_inst" {
     source      = "docker-compose.yml"
     destination = "docker-compose.yml"
   }
-
-#   user_data = file("init.sh")
+  provisioner "file" {
+    source      = "ip.php"
+    destination = "ip.php"
+  }
 
   provisioner "remote-exec" {
     inline = [
@@ -58,8 +59,9 @@ resource "aws_instance" "ec2_inst" {
       "echo WORDPRESS_DB_PASSWORD=${var.db_password} >> .env",
       "sudo mkdir /efs",
       "sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport ${aws_efs_mount_target.mount.ip_address}:/ /efs",
-      "[ -d /efs/wordpress ] && echo wordpress dir exists || sudo mkdir /efs/wordpress",
-      "sudo docker-compose up -d > /dev/null"
+      "mkdir -p /efs/wordpress",
+      "sudo docker-compose up -d > /dev/null",
+      "sudo cp ip.php /efs/wordpress/"
     ]
   }
 
