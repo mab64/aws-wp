@@ -14,10 +14,10 @@ output "EFS_IP_Address" {
   value = aws_efs_mount_target.mount.ip_address
 }
 
-# output "elb_dns_name" {
-#   value = aws_elb.elb.dns_name
-# }
-
 output "ALB_DNS_Name" {
   value = aws_lb.alb.dns_name
 }
+
+# output "elb_dns_name" {
+#   value = aws_elb.elb.dns_name
+# }
