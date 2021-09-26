@@ -11,7 +11,7 @@ resource "aws_db_instance" "rdb" {
   allocated_storage    = 5
   engine               = "MariaDB"
   engine_version       = "10.4"
-  identifier           = "wp-db"
+  identifier           = "rds-mariadb"
   instance_class       = var.db_instance_class
   name                 = var.db_name
   username             = var.db_user
