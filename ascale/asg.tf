@@ -7,7 +7,7 @@ resource "aws_security_group" "ec2_sg" {
   }
 
   dynamic "ingress" {
-    for_each = ["22", "80", "443", "3306", "8080"]
+    for_each = ["22", "80", "443"]
     content {
       from_port        = ingress.value
       to_port          = ingress.value

@@ -48,6 +48,6 @@ resource "aws_lb_listener" "aws_lb_lstn" {
 }
 
 
-output "alb_dns_name" {
+output "ALB_DNS_NAME" {
   value = aws_lb.alb.dns_name
 }

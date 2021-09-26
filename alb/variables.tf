@@ -37,8 +37,9 @@ variable "ec2_ami" {
 variable "ec2_instance_type" {
   default = "t2.micro"
 }
-variable "ec2_innstance_count" {
+variable "ec2_instance_count" {
   default = 2
+  description = "The number of EC2 Instances"
 }
 variable "ec2_username" {
   default = "admin"
