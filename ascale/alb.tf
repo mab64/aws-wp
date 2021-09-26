@@ -39,9 +39,10 @@ resource "aws_lb_listener" "alb_lstn_http" {
     target_group_arn = aws_lb_target_group.alb_tg.arn
   }
 }
+
 # For HTTPS access
 # Genetate SSL certificate for your dommain name
-# Create CNAME record on your domain DNS server
+# Create CNAME record in your domain DNS server
 
 # resource "aws_acm_certificate" "ssl_cert" {
 #   private_key=file("../.cert/privkey.pem")
