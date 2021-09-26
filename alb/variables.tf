@@ -4,12 +4,15 @@ variable "aws_region" {
 
 variable "common_tags" {
   default = {
-    Environment = ""
-    Owner       = ""
-    Project     = ""
+    Environment = "Test"
+    Owner       = "Aleksandr Mukhin"
+    Project     = "Wordpress deploy"
   }
 }
-variable "name_prefix" {}
+
+variable "name_prefix" {
+  default = "wp"
+}
 
 variable "vpc_net_prefix" {
   default = "10.10."

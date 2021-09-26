@@ -42,19 +42,21 @@ resource "aws_lb_listener" "alb_lstn_http" {
 # For HTTPS access
 # Genetate SSL certificate for your dommain name
 # Create CNAME record on your domain DNS server
-resource "aws_lb_listener" "alb_lstn_https" {
-  load_balancer_arn = aws_lb.alb.arn
-  port              = "443"
-  protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = aws_acm_certificate.ssl_cert.arn
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.alb_tg.arn
-  }
-}
 
-# resource "aws_lb_listener_certificate" "alb_lstn_https_cert" {
-#   listener_arn    = aws_lb_listener.alb_lstn_https.arn
-#   certificate_arn = aws_acm_certificate.ssl_cert.arn
+# resource "aws_acm_certificate" "ssl_cert" {
+#   private_key=file("../.cert/privkey.pem")
+#   certificate_body = file("../.cert/cert.pem")
+#   certificate_chain=file("../.cert/chain.pem")
+# }
+
+# resource "aws_lb_listener" "alb_lstn_https" {
+#   load_balancer_arn = aws_lb.alb.arn
+#   port              = "443"
+#   protocol          = "HTTPS"
+#   ssl_policy        = "ELBSecurityPolicy-2016-08"
+#   certificate_arn   = aws_acm_certificate.ssl_cert.arn
+#   default_action {
+#     type             = "forward"
+#     target_group_arn = aws_lb_target_group.alb_tg.arn
+#   }
 # }

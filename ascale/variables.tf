@@ -9,21 +9,26 @@ variable "common_tags" {
     Project     = ""
   }
 }
-variable "name_prefix" {}
-
-variable "vpc_cidr" {
-  default = "10.11.0.0/16"
+variable "name_prefix" {
+  default = "wp1"
 }
 
-variable "cidr_blocks" {
-  default = ["10.11.0.0/24", 
-             "10.11.1.0/24",
-             "10.11.2.0/24",
-             "10.11.3.0/24",
-             "10.11.4.0/24",
-             "10.11.5.0/24",
-            ]
+variable "vpc_net_prefix" {
+  default = "10.11."
 }
+
+# variable "vpc_cidr" {
+#   default = "10.11.0.0/16"
+# }
+# variable "cidr_blocks" {
+#   default = ["10.11.0.0/24", 
+#              "10.11.1.0/24",
+#              "10.11.2.0/24",
+#              "10.11.3.0/24",
+#              "10.11.4.0/24",
+#              "10.11.5.0/24",
+#             ]
+# }
 
 variable "ec2_ami" {
   default = "ami-0245697ee3e07e755" # debian 10
