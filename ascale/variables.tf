@@ -5,7 +5,7 @@ variable "aws_region" {
 variable "common_tags" {
   default = {
     Environment = "Test"
-    Owner       = "Aleksandr Mukhin"
+    Owner       = "MA"
     Project     = "Wordpress deploy with autoscaling"
   }
 }

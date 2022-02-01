@@ -26,6 +26,9 @@ resource "aws_lb_target_group" "alb_tg" {
     enabled = true
     type = "lb_cookie"
   }
+  health_check {
+    matcher = "200-302"
+  }
   depends_on = [aws_lb.alb]
 }
 
